@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logic Land: A Puzzle Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: The application is a single-page app (SPA) featuring a main "Puzzle Library" view. Puzzles are presented as interactive cards, categorized into "Classic" and "Advanced" sections. Clicking a card opens a full-screen modal overlay, which serves as the dedicated workspace for solving that puzzle. This modal contains the puzzle's story, clues, an interactive answer area, and options to check the answer or view the solution. This structure was chosen for its excellent usability, as it focuses user attention on one task at a time while keeping the main library easily accessible without page reloads, providing a seamless and intuitive user flow. -->
+    <!-- Visualization & Content Choices: Puzzles are represented by "cards" (styled divs) for a clean, selectable interface. User input is handled by dynamically generated form elements within the modal: radio buttons for single-choice answers, dropdowns for matching or multi-part answers, and text inputs for specific string answers. This ensures the interaction method is always appropriate for the question type. Feedback is provided via a color-changing div for immediate confirmation, and solutions are hidden by default to encourage attempts. All interactions are powered by vanilla JavaScript, and styling is exclusively handled by Tailwind CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8fafc; /* Slate-50 */
+            color: #334155; /* Slate-700 */
+        }
+        .puzzle-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            border: 1px solid #e2e8f0; /* Slate-200 */
+        }
+        .puzzle-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            border-color: #a78bfa; /* Violet-400 */
+        }
+        .btn {
+            transition: all 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .modal-content {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-overlay-bg {
+            backdrop-filter: blur(4px);
+        }
+        .form-radio:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+            border-color: transparent;
+            background-color: currentColor;
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700">
+
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <header class="text-center mb-12 md:mb-16">
+            <div class="inline-block bg-violet-100 text-violet-600 p-4 rounded-full mb-4 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v1.2a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5V4.5A2.5 2.5 0 0 1 17 2h.5a2.5 2.5 0 0 1 2.5 2.5v9.25a2.5 2.5 0 0 1-2.5 2.5h-1a.5.5 0 0 0-.5.5v1.2a2.5 2.5 0 0 1-2.5 2.5h-2.5a2.5 2.5 0 0 1-2.5-2.5v-1.2a.5.5 0 0 0-.5-.5h-1a2.5 2.5 0 0 1-2.5-2.5V4.5A2.5 2.5 0 0 1 4.5 2Z"/><path d="M12 13.5a2.5 2.5 0 0 0-2.5-2.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a2.5 2.5 0 0 1 2.5 2.5v1.2a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5V16a2.5 2.5 0 0 0-2.5-2.5Z"/></svg>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-800">Welcome to Logic Land</h1>
+            <p class="text-lg text-slate-500 mt-3 max-w-2xl mx-auto">A curated collection of classic and advanced logic puzzles to challenge your mind and sharpen your reasoning.</p>
+        </header>
+
+        <main id="puzzle-selection" class="space-y-12">
+            <div>
+                <h2 class="text-2xl md:text-3xl font-bold mb-6 flex items-center gap-3 text-slate-800">
+                    <span class="text-teal-500"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg></span>
+                    Classic Puzzles
+                </h2>
+                <div id="classic-puzzles" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-2xl md:text-3xl font-bold mb-6 flex items-center gap-3 text-slate-800">
+                    <span class="text-amber-500"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17h4v-2.34"/><path d="M8 19h8"/><path d="M12 17.5v4.5"/><path d="M8 12h8"/><path d="M12 2v12.5"/></svg></span>
+                    Advanced Puzzles
+                </h2>
+                <div id="advanced-puzzles" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                </div>
+            </div>
+        </main>
+
+        <div id="puzzle-modal" class="fixed inset-0 bg-slate-900 bg-opacity-50 modal-overlay-bg flex items-center justify-center p-4 hidden z-50">
+            <div class="modal-content bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div class="p-6 md:p-8 border-b border-slate-200">
+                    <div class="flex justify-between items-start">
+                        <h3 id="puzzle-title" class="text-2xl font-bold text-slate-800"></h3>
+                        <button id="close-modal" class="text-slate-400 hover:text-slate-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6 md:p-8 overflow-y-auto">
+                    <div id="puzzle-body" class="space-y-6">
+                        <p id="puzzle-scenario" class="text-slate-600 leading-relaxed"></p>
+                        <div id="puzzle-clues" class="bg-violet-50 p-4 rounded-lg border border-violet-200 space-y-2"></div>
+                        <div id="puzzle-interactive" class="mt-6"></div>
+                        <div id="puzzle-feedback" class="mt-4 p-4 rounded-lg text-center font-semibold hidden"></div>
+                        <div id="puzzle-solution" class="mt-6 p-4 bg-slate-100 rounded-lg hidden"></div>
+                    </div>
+                </div>
+                <div class="p-6 bg-slate-50 border-t border-slate-200 rounded-b-lg">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button id="check-answer" class="btn flex-1 bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Check Answer</span>
+                        </button>
+                        <button id="show-solution" class="btn flex-1 bg-amber-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-amber-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span>Show Solution</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const puzzles = {
+            classic: [
+                {
+                    id: 'c1',
+                    title: 'The Asylum of Dr. Tarr and Prof. Fether',
+                    scenario: 'In an asylum, all inhabitants are either patients or doctors. The doctors always tell the truth (like Knights) and the patients always lie (like Knaves). You meet two people, A and B.',
+                    clues: ['A says, "We are both patients."'],
+                    question: 'What is B?',
+                    interactive: { type: 'radio', options: ['Doctor', 'Patient'] },
+                    check: (ans) => ans === 'Doctor',
+                    solution: 'Let\'s analyze A\'s statement. Could A be a doctor (truth-teller)? If so, his statement "We are both patients" would have to be true. But he is a doctor, so this is a contradiction. Therefore, A must be a patient (liar). Since A is a patient, his statement must be a lie. The lie is "We are both patients." The logical opposite of this is "At least one of us is not a patient (is a doctor)." Since we already know A is a patient, for the statement to be a lie, B must be a doctor.'
+                },
+                {
+                    id: 'c2',
+                    title: 'The Fork in the Road',
+                    scenario: 'You are at a fork in the road. One path leads to freedom, the other to doom. Two guards stand here. One is a Knight who always tells the truth, and the other is a Knave who always lies. You do not know which is which.',
+                    clues: ['You may ask one guard a single question to determine the path to freedom.'],
+                    question: 'What question do you ask?',
+                    interactive: { type: 'radio', options: ['Which path is the safe one?', 'Are you the Knight?', 'Which path would the other guard say leads to freedom?'] },
+                    check: (ans) => ans.includes('other guard'),
+                    solution: 'You ask either guard: "Which path would the other guard say leads to freedom?" Both guards will point you towards the path of doom. The Knight knows the Knave would lie and point to doom, so he truthfully reports this. The Knave knows the Knight would point to freedom, so he lies and also points to doom. Since both answers point to doom, you simply take the other path.'
+                },
+                {
+                    id: 'c3',
+                    title: 'Portia\'s Caskets',
+                    scenario: 'From "The Merchant of Venice". A suitor must choose between three caskets: Gold, Silver, and Lead. One contains a portrait. Portia has told the suitor that at most one of the three inscriptions is true.',
+                    clues: [
+                        'Gold Casket: "The portrait is in this casket."',
+                        'Silver Casket: "The portrait is not in this casket."',
+                        'Lead Casket: "The portrait is not in the Gold casket."'
+                    ],
+                    question: 'Which casket holds the portrait?',
+                    interactive: { type: 'radio', options: ['Gold', 'Silver', 'Lead'] },
+                    check: (ans) => ans === 'Silver',
+                    solution: 'Let\'s analyze the statements. If the Gold inscription were true, the portrait would be in it. This would make the Silver inscription ("The portrait is not in this casket") true as well. This violates the rule of "at most one is true". So the Gold inscription must be false. Since the Gold inscription is false, this means the portrait is NOT in the Gold casket. This makes the Lead inscription ("The portrait is not in the Gold casket") TRUE. Since we can have at most one true statement, the Lead inscription must be the only true one. This means the Silver inscription must be false. If the Silver inscription ("The portrait is not in this casket") is false, then the portrait IS in the Silver casket.'
+                },
+                {
+                    id: 'c4',
+                    title: 'The Trial of the Knaves',
+                    scenario: 'Three defendants, A, B, and C, are on trial. One is a Knight, one a Knave, and one a Spy (who can lie or tell the truth).',
+                    clues: [
+                        'A says: "C is the Knave."',
+                        'B says: "A is the Knight."',
+                        'C says: "I am the Spy."'
+                    ],
+                    question: 'Who is the Knave?',
+                    interactive: { type: 'radio', options: ['A', 'B', 'C'] },
+                    check: (ans) => ans === 'C',
+                    solution: 'Let\'s analyze C\'s statement: "I am the Spy." A Knight cannot say this (it would be a lie). So C is not the Knight. Now, assume C\'s statement is a lie. This would make C the Knave. If C is the Knave, then A\'s statement ("C is the Knave") is TRUE. This makes A the Knight. If A is the Knight, then B\'s statement ("A is the Knight") is also TRUE. This means B must be the Spy (telling the truth). This configuration is perfectly consistent: A=Knight, B=Spy, C=Knave. Therefore, C is the Knave.'
+                },
+                {
+                    id: 'c5',
+                    title: 'The Three Prisoners',
+                    scenario: 'Three prisoners are in a line. The warden shows them five hats, three red and two white. He puts a hat on each prisoner\'s head. They can see the hats of those in front of them, but not their own.',
+                    clues: [
+                        'The warden asks the prisoner in the back (who sees two hats), "What color is your hat?" The prisoner says, "I don\'t know."',
+                        'The warden asks the middle prisoner (who sees one hat), "What color is your hat?" He also says, "I don\'t know."',
+                        'The warden asks the prisoner in the front (who sees no hats), "What color is your hat?" The prisoner correctly states his hat color.'
+                    ],
+                    question: 'What color is the front prisoner\'s hat?',
+                    interactive: { type: 'radio', options: ['White', 'Red'] },
+                    check: (ans) => ans === 'Red',
+                    solution: 'The front prisoner reasons: The back prisoner would only know his color if he saw two white hats (knowing his must be red). Since he didn\'t know, the two hats in front are not both white. The middle prisoner heard this. He looks at the front prisoner. If he saw a white hat on the front prisoner, he would know his own must be red (to avoid the two-white-hats scenario). Because the middle prisoner also said "I don\'t know", it means he must NOT have seen a white hat on the front prisoner. Therefore, the front prisoner knows his hat must be red.'
+                }
+            ],
+            advanced: [
+                {
+                    id: 'a1',
+                    title: 'The Hardest Logic Puzzle Ever (Simplified)',
+                    scenario: 'You meet three gods: True (always truthful), False (always lies), and Random (speaks randomly). You must identify them by asking three yes/no questions. The gods answer in their own language, using \'da\' and \'ja\'. You do not know which word means \'yes\' and which means \'no\'.',
+                    clues: ['Your goal is to devise a question that will, with one answer, allow you to identify a god who is NOT Random.'],
+                    question: 'What is the most effective first question to ask a god (e.g. B)?',
+                    interactive: { type: 'radio', options: ['Are you True?', 'Does "ja" mean yes?', 'If I were to ask you "Is A Random?", would you say "ja"?'] },
+                    check: (ans) => ans.includes('If I were to ask you'),
+                    solution: 'The key is a question that forces a predictable answer from the non-random gods. By asking God B, "If I were to ask you \'Is God A Random?\', would you say \'ja\'?", you can identify a non-random god. If B answers \'ja\', then either B is Random, or C is the non-random one you are looking for. If B answers \'da\', then either B is Random, or A is the non-random one. This complex question structure allows you to bypass the language barrier and the uncertainty of Random to guarantee you can identify a god you can trust (or distrust) for your next question.'
+                },
+                {
+                    id: 'a2',
+                    title: 'The Conjunctive Knave',
+                    scenario: 'You meet two people from an island of only Knights and Knaves, A and B.',
+                    clues: ['A says, "I am a Knave, but B isn\'t."'],
+                    question: 'What are A and B?',
+                    interactive: { type: 'dropdowns', questions: [{ label: 'A is a:', options: ['Knight', 'Knave'] }, { label: 'B is a:', options: ['Knight', 'Knave'] }] },
+                    check: (ans) => ans[0] === 'Knave' && ans[1] === 'Knave',
+                    solution: 'Let\'s analyze A\'s statement. If A were a Knight, his statement would be true. But the first part, "I am a Knave," would be false. A true statement cannot have a false part in a conjunction. So, A cannot be a Knight. Therefore, A must be a Knave, and his entire statement is a lie. The statement is a conjunction: (A is a Knave) AND (B is not a Knave). For this "P and Q" statement to be false, at least one part must be false. We know the first part, "A is a Knave," is actually true. So, the second part, "B isn\'t a Knave," must be the false part. If "B isn\'t a Knave" is false, then B IS a Knave. Therefore, both A and B are Knaves.'
+                },
+                {
+                    id: 'a3',
+                    title: 'Bellini and Cellini',
+                    scenario: 'Portia has two caskets, Gold and Silver. One contains the portrait. Bellini and Cellini each made a statement. You know that at least one of them is lying.',
+                    clues: ['Bellini: "The portrait is not in the Gold casket."', 'Cellini: "Exactly one of our two statements is true."'],
+                    question: 'Which casket holds the portrait?',
+                    interactive: { type: 'radio', options: ['Gold', 'Silver'] },
+                    check: (ans) => ans === 'Gold',
+                    solution: 'Let\'s analyze Cellini\'s statement. Case 1: Cellini is telling the truth. If his statement is true, then exactly one of the two statements is true. Since his own statement is the true one, Bellini\'s must be false. If Bellini\'s statement ("Portrait not in Gold") is false, then the portrait IS in the Gold casket. Case 2: Cellini is lying. If his statement is false, then it is NOT the case that "exactly one" statement is true. This means either both are true or both are false. But the puzzle states at least one is lying, so they can\'t both be true. Therefore, both must be false. If Bellini\'s statement ("Portrait not in Gold") is false, then the portrait IS in the Gold casket. Both scenarios lead to the same conclusion.'
+                },
+                {
+                    id: 'a4',
+                    title: 'The Twelve Balls Puzzle',
+                    scenario: 'You have twelve identical-looking balls. One is of a different weight (either heavier or lighter). You have a balance scale and can only use it three times to find the odd ball and determine if it is heavier or lighter.',
+                    clues: ['The key is to divide the balls into groups to maximize the information from each weighing.'],
+                    question: 'What is the fundamental first step of the solution?',
+                    interactive: { type: 'radio', options: ['Weigh 6 balls against the other 6.', 'Weigh 4 balls against another 4.', 'Weigh 3 balls against another 3.', 'Weigh 1 ball against another 1, repeating.'] },
+                    check: (ans) => ans.includes('4 balls against another 4'),
+                    solution: 'The solution requires dividing the balls into three groups of four (G1, G2, G3). First weighing: Weigh G1 against G2. If they balance, the odd ball is in G3. You then weigh three balls from G3 against three known good balls. If they do not balance, you know the odd ball is in the eight you weighed, and you know if it\'s on the heavy or light side. Subsequent weighings involve taking a mix of balls from the heavy and light sides to isolate the odd one within the three-weigh limit.'
+                },
+                {
+                    id: 'a5',
+                    title: "Cheryl's Birthday",
+                    scenario: "Albert and Bernard have just become friends with Cheryl, and they want to know when her birthday is. Cheryl gives them a list of 10 possible dates.",
+                    clues: [
+                        'The possible dates are: May 15, May 16, May 19, June 17, June 18, July 14, July 16, August 14, August 15, August 17.',
+                        'Cheryl then tells Albert the month and Bernard the day.',
+                        'Albert: "I don\'t know when the birthday is, but I know that Bernard doesn\'t know either."',
+                        'Bernard: "At first I didn\'t know, but I know now."',
+                        'Albert: "Then I also know when the birthday is."'
+                    ],
+                    question: "When is Cheryl's birthday?",
+                    interactive: { type: 'radio', options: ['May 19', 'June 17', 'July 16', 'August 17'] },
+                    check: (ans) => ans === 'July 16',
+                    solution: '1. Albert knows the month. For him to know that Bernard *also* doesn\'t know, Albert\'s month cannot contain a unique day. The unique days are 18 and 19. This eliminates May and June. The month must be July or August. 2. Bernard hears this. He now knows the month is July or August. He says he now knows the date. This means his day is not the number 14 (which appears in both July and August). So the date must be July 16, Aug 15, or Aug 17. 3. Albert hears this. He now knows the birthday. If the month he was told was August, there would still be two possibilities (Aug 15, Aug 17), so he couldn\'t know. Therefore, the month he was told must be July, which only has one remaining possibility. The birthday is July 16.'
+                }
+            ]
+        };
+
+        const classicPuzzlesContainer = document.getElementById('classic-puzzles');
+        const advancedPuzzlesContainer = document.getElementById('advanced-puzzles');
+        const modal = document.getElementById('puzzle-modal');
+        const puzzleTitle = document.getElementById('puzzle-title');
+        const puzzleScenario = document.getElementById('puzzle-scenario');
+        const puzzleClues = document.getElementById('puzzle-clues');
+        const puzzleInteractive = document.getElementById('puzzle-interactive');
+        const puzzleFeedback = document.getElementById('puzzle-feedback');
+        const puzzleSolution = document.getElementById('puzzle-solution');
+        const checkAnswerBtn = document.getElementById('check-answer');
+        const showSolutionBtn = document.getElementById('show-solution');
+        const closeModalBtn = document.getElementById('close-modal');
+
+        let currentPuzzle = null;
+
+        function createPuzzleCard(puzzle, category) {
+            const card = document.createElement('div');
+            card.className = 'puzzle-card bg-white p-6 rounded-lg shadow-sm cursor-pointer flex flex-col h-full';
+            const categoryColor = category === 'classic' ? 'teal' : 'amber';
+            card.innerHTML = `
+                <div class="flex-grow">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-lg font-bold text-slate-800 pr-2">${puzzle.title}</h3>
+                        <span class="text-xs font-semibold uppercase px-2 py-1 rounded-full ${category === 'classic' ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'}">${category}</span>
+                    </div>
+                    <p class="text-slate-500 text-sm">${puzzle.scenario}</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-200 text-right">
+                    <span class="text-violet-600 font-semibold text-sm hover:text-violet-800">Solve Puzzle &rarr;</span>
+                </div>
+            `;
+            card.addEventListener('click', () => openPuzzle(puzzle));
+            return card;
+        }
+
+        function openPuzzle(puzzle) {
+            currentPuzzle = puzzle;
+            puzzleTitle.textContent = puzzle.title;
+            puzzleScenario.textContent = puzzle.scenario;
+            
+            puzzleClues.innerHTML = puzzle.clues.map(clue => `<p class="text-slate-700">&bull; ${clue}</p>`).join('');
+            
+            buildInteractiveArea(puzzle);
+
+            puzzleFeedback.classList.add('hidden');
+            puzzleSolution.classList.add('hidden');
+            puzzleSolution.innerHTML = `<h4 class="font-bold mb-2 text-slate-800">Solution Explained</h4><p class="text-slate-600">${puzzle.solution}</p>`;
+            
+            // Disable solution button on open
+            showSolutionBtn.disabled = true;
+            showSolutionBtn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+            showSolutionBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            modal.classList.remove('hidden');
+        }
+
+        function buildInteractiveArea(puzzle) {
+            puzzleInteractive.innerHTML = '';
+            const interactive = puzzle.interactive;
+            
+            const question = document.createElement('p');
+            question.className = 'font-semibold text-lg mb-4 text-slate-700';
+            question.textContent = puzzle.question;
+            puzzleInteractive.appendChild(question);
+
+            if (interactive.type === 'radio') {
+                const form = document.createElement('div');
+                form.className = 'space-y-2';
+                interactive.options.forEach(option => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center p-3 border border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer has-[:checked]:bg-violet-50 has-[:checked]:border-violet-400';
+                    label.innerHTML = `
+                        <input type="radio" name="answer" value="${option}" class="form-radio h-5 w-5 text-violet-600 focus:ring-violet-500 border-slate-400">
+                        <span class="ml-3 text-slate-700">${option}</span>
+                    `;
+                    form.appendChild(label);
+                });
+                puzzleInteractive.appendChild(form);
+            } else if (interactive.type === 'text') {
+                 const input = document.createElement('input');
+                 input.type = 'text';
+                 input.name = 'answer';
+                 input.className = 'w-full p-2 border border-slate-300 rounded-md focus:ring-violet-500 focus:border-violet-500';
+                 input.placeholder = 'Type your answer here';
+                 puzzleInteractive.appendChild(input);
+            } else if (interactive.type === 'dropdowns') {
+                const container = document.createElement('div');
+                container.id = 'dropdown-container';
+                container.className = 'space-y-3';
+                interactive.questions.forEach((q, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'grid grid-cols-3 items-center gap-4';
+                    div.innerHTML = `<label class="font-semibold text-slate-700 col-span-1">${q.label}</label>`;
+                    const select = document.createElement('select');
+                    select.dataset.index = index;
+                    select.className = 'w-full p-2 border border-slate-300 rounded-md mt-1 bg-white col-span-2 focus:ring-violet-500 focus:border-violet-500';
+                    select.innerHTML = `<option value="">Select...</option>` + q.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    div.appendChild(select);
+                    container.appendChild(div);
+                });
+                puzzleInteractive.appendChild(container);
+            }
+        }
+
+        function checkAnswer() {
+            if (!currentPuzzle) return;
+
+            let userAnswer;
+            const interactive = currentPuzzle.interactive;
+
+            if (interactive.type === 'radio') {
+                const selected = puzzleInteractive.querySelector('input[name="answer"]:checked');
+                userAnswer = selected ? selected.value : null;
+            } else if (interactive.type === 'text') {
+                const input = puzzleInteractive.querySelector('input[name="answer"]');
+                userAnswer = input ? input.value.trim() : null;
+            } else if (interactive.type === 'dropdowns') {
+                userAnswer = [];
+                puzzleInteractive.querySelectorAll('select').forEach(select => {
+                    userAnswer[parseInt(select.dataset.index)] = select.value;
+                });
+            }
+
+            const isCorrect = currentPuzzle.check(userAnswer);
+
+            puzzleFeedback.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+            if (isCorrect) {
+                puzzleFeedback.textContent = 'Correct! Fantastic job!';
+                puzzleFeedback.classList.add('bg-green-100', 'text-green-800');
+                
+                showSolutionBtn.disabled = false;
+                showSolutionBtn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+                showSolutionBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+
+            } else {
+                puzzleFeedback.textContent = 'Not quite. Give it another thought!';
+                puzzleFeedback.classList.add('bg-red-100', 'text-red-800');
+            }
+        }
+
+        closeModalBtn.addEventListener('click', () => modal.classList.add('hidden'));
+        checkAnswerBtn.addEventListener('click', checkAnswer);
+        showSolutionBtn.addEventListener('click', () => {
+            if(showSolutionBtn.disabled) return;
+            puzzleSolution.classList.remove('hidden');
+            puzzleFeedback.classList.add('hidden');
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+
+        puzzles.classic.forEach(p => classicPuzzlesContainer.appendChild(createPuzzleCard(p, 'classic')));
+        puzzles.advanced.forEach(p => advancedPuzzlesContainer.appendChild(createPuzzleCard(p, 'advanced')));
+
+    </script>
+</body>
+</html>
